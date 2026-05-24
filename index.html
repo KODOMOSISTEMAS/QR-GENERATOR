@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Generator Pro - Kodomosistemas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 min-h-screen p-4">
+  
+  <!-- Header -->
+  <div class="max-w-6xl mx-auto mb-6">
+    <div class="text-center">
+      <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+        QR Generator Pro
+      </h1>
+      <p class="text-gray-600">Kodomosistemas - Generador Profesional de Códigos QR</p>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
+    
+    <!-- Tabs -->
+    <div class="border-b border-gray-200">
+      <nav class="flex">
+        <button id="tab-url" onclick="cambiarTab('url')" class="tab-active flex-1 px-6 py-4 text-sm font-medium">
+          🔗 URL
+        </button>
+        <button id="tab-text" onclick="cambiarTab('text')" class="tab-inactive flex-1 px-6 py-4 text-sm font-medium">
+          📝 Texto
+        </button>
+        <button id="tab-contact" onclick="cambiarTab('contact')" class="tab-inactive flex-1 px-6 py-4 text-sm font-medium">
+          👤 Contacto
+        </button>
+      </nav>
+    </div>
+
+    <div class="p-8">
+      <div class="grid lg:grid-cols-2 gap-8">
+        
+        <!-- Input Section -->
+        <div id="input-section" class="space-y-6">
+          <!-- Se llena dinámicamente -->
+        </div>
+
+        <!-- QR Display Section -->
+        <div class="space-y-6">
+          <h2 class="text-2xl font-semibold text-gray-800">Código QR Generado</h2>
+          
+          <div class="bg-gray-50 rounded-2xl p-8">
+            <div id="qr-container" class="flex justify-center min-h-[300px] items-center">
+              <div class="text-center py-16">
+                <p class="text-gray-500 text-4xl mb-4">📱</p>
+                <p class="text-gray-500">Completa el formulario para generar tu código QR</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="qr-actions" class="hidden space-y-4">
+            <div class="flex gap-4">
+              <button onclick="descargarQR()" class="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-medium shadow-lg">
+                ⬇️ Descargar
+              </button>
+              
+              <button onclick="copiarDatos()" id="btn-copiar" class="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium">
+                📋 Copiar Datos
+              </button>
+            </div>
+            
+            <div class="bg-gray-100 rounded-lg p-3">
+              <h3 class="text-sm font-medium text-gray-700 mb-2">Datos del QR:</h3>
+              <pre id="qr-data-display" class="text-xs text-gray-600 max-h-32 overflow-y-auto whitespace-pre-wrap break-words"></pre>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .tab-active {
+      color: #7c3aed;
+      border-bottom: 2px solid #7c3aed;
+      background-color: #f5f3ff;
+    }
+    .tab-inactive {
+      color: #6b7280;
+    }
+    .tab-inactive:hover {
+      color: #374151;
+      background-color: #f9fafb;
+    }
+  </style>
+
+  <script>
+    // Estado global
+    let state = {
+      activeTab: 'url',
+      qrColor: '#000000',
+      qrBgColor: '#FFFFFF',
+      logo: null,
+      qrData: ''
+    };
+
+    // Cambiar pestaña
+    function cambiarTab(tab) {
+      state.activeTab = tab;
+      
+      // Actualizar estilos de pestañas
+      document.querySelectorAll('button[id^="tab-"]').forEach(btn => {
+        btn.className = btn.id === `tab-${tab}` ? 'tab-active flex-1 px-6 py-4 text-sm font-medium' : 'tab-inactive flex-1 px-6 py-4 text-sm font-medium';
+      });
+      
+      // Renderizar contenido
+      renderInputSection();
+    }
+
+    // Renderizar sección de entrada según tab activo
+    function renderInputSection() {
+      const section = document.getElementById('input-section');
+      
+      let html = '';
+      
+      if (state.activeTab === 'url') {
+        html = `
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Ingresa URL</h2>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">URL del Sitio Web</label>
+            <input type="url" id="input-url" oninput="actualizarQR()" 
+                   placeholder="ejemplo.com o https://ejemplo.com"
+                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            <p class="text-xs text-gray-500 mt-1">Se agregará https:// automáticamente si no lo incluyes</p>
+          </div>
+        `;
+      } else if (state.activeTab === 'text') {
+        html = `
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Ingresa Texto</h2>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Contenido de Texto</label>
+            <textarea id="input-text" oninput="actualizarQR()" rows="4"
+                      placeholder="Ingresa cualquier texto para generar código QR..."
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"></textarea>
+          </div>
+        `;
+      } else if (state.activeTab === 'contact') {
+        html = `
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Información de Contacto</h2>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+                <input type="text" id="contact-firstname" oninput="actualizarQR()" placeholder="Juan"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Apellido</label>
+                <input type="text" id="contact-lastname" oninput="actualizarQR()" placeholder="Pérez"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+              <input type="tel" id="contact-phone" oninput="actualizarQR()" placeholder="+52 123 456 7890"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input type="email" id="contact-email" oninput="actualizarQR()" placeholder="contacto@ejemplo.com"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Organización</label>
+              <input type="text" id="contact-org" oninput="actualizarQR()" placeholder="Kodomosistemas"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Sitio Web</label>
+              <input type="url" id="contact-url" oninput="actualizarQR()" placeholder="https://ejemplo.com"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            </div>
+          </div>
+        `;
+      }
+      
+      // Agregar personalización
+      html += `
+        <button onclick="limpiarFormulario()" class="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium mt-4">
+          🗑️ Limpiar Campos
+        </button>
+        
+        <div class="border-t pt-6 space-y-4 mt-6">
+          <h3 class="text-lg font-semibold text-gray-800">🎨 Personalización</h3>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Color QR</label>
+              <div class="flex gap-2">
+                <input type="color" id="qr-color" value="${state.qrColor}" onchange="cambiarColor()"
+                       class="w-12 h-10 rounded-lg cursor-pointer border-2 border-gray-300">
+                <input type="text" id="qr-color-text" value="${state.qrColor}" onchange="cambiarColorTexto()"
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="#000000">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Color Fondo</label>
+              <div class="flex gap-2">
+                <input type="color" id="qr-bgcolor" value="${state.qrBgColor}" onchange="cambiarBgColor()"
+                       class="w-12 h-10 rounded-lg cursor-pointer border-2 border-gray-300">
+                <input type="text" id="qr-bgcolor-text" value="${state.qrBgColor}" onchange="cambiarBgColorTexto()"
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="#FFFFFF">
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">🖼️ Logo Central (opcional)</label>
+            <input type="file" id="logo-input" accept="image/*" onchange="cargarLogo()" class="hidden">
+            <div class="flex gap-2">
+              <label for="logo-input" class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 cursor-pointer">
+                ${state.logo ? '🔄 Cambiar Logo' : '📤 Subir Logo'}
+              </label>
+              ${state.logo ? '<button onclick="quitarLogo()" class="px-4 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">❌ Quitar</button>' : ''}
+            </div>
+            ${state.logo ? '<div class="mt-2 flex items-center gap-2 text-sm text-gray-600"><img src="' + state.logo + '" class="w-8 h-8 object-cover rounded"> Logo cargado</div>' : ''}
+          </div>
+        </div>
+      `;
+      
+      section.innerHTML = html;
+    }
+
+    // Actualizar QR
+    function actualizarQR() {
+      let data = '';
+      
+      if (state.activeTab === 'url') {
+        const url = document.getElementById('input-url')?.value || '';
+        data = url.trim() ? (url.startsWith('http') ? url : 'https://' + url) : '';
+      } else if (state.activeTab === 'text') {
+        data = document.getElementById('input-text')?.value || '';
+      } else if (state.activeTab === 'contact') {
+        const firstName = document.getElementById('contact-firstname')?.value || '';
+        const lastName = document.getElementById('contact-lastname')?.value || '';
+        const phone = document.getElementById('contact-phone')?.value || '';
+        const email = document.getElementById('contact-email')?.value || '';
+        const org = document.getElementById('contact-org')?.value || '';
+        const url = document.getElementById('contact-url')?.value || '';
+        
+        if (firstName || lastName || phone || email) {
+          data = `BEGIN:VCARD\nVERSION:3.0\nFN:${firstName} ${lastName}\nN:${lastName};${firstName};;;\nORG:${org}\nTEL:${phone}\nEMAIL:${email}\nURL:${url}\nEND:VCARD`;
+        }
+      }
+      
+      state.qrData = data;
+      generarQR(data);
+    }
+
+    // Generar QR
+    function generarQR(text) {
+      const container = document.getElementById('qr-container');
+      const actions = document.getElementById('qr-actions');
+      const dataDisplay = document.getElementById('qr-data-display');
+      
+      if (!text.trim()) {
+        container.innerHTML = '<div class="text-center py-16"><p class="text-gray-500 text-4xl mb-4">📱</p><p class="text-gray-500">Completa el formulario para generar tu código QR</p></div>';
+        actions.classList.add('hidden');
+        return;
+      }
+      
+      container.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      container.appendChild(canvas);
+      
+      try {
+        new QRious({
+          element: canvas,
+          value: text,
+          size: 300,
+          background: state.qrBgColor,
+          foreground: state.qrColor,
+          level: 'H'
+        });
+        
+        if (state.logo) {
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          img.onload = () => {
+            const logoSize = canvas.width * 0.2;
+            const x = (canvas.width - logoSize) / 2;
+            const y = (canvas.height - logoSize) / 2;
+            ctx.fillStyle = state.qrBgColor;
+            ctx.fillRect(x - 5, y - 5, logoSize + 10, logoSize + 10);
+            ctx.drawImage(img, x, y, logoSize, logoSize);
+          };
+          img.src = state.logo;
+        }
+        
+        canvas.className = 'w-full h-auto rounded-xl shadow-lg';
+        canvas.style.maxWidth = '300px';
+        
+        actions.classList.remove('hidden');
+        dataDisplay.textContent = text;
+      } catch (error) {
+        console.error('Error:', error);
+        container.innerHTML = '<div class="text-center py-16"><p class="text-red-500">Error al generar QR</p></div>';
+      }
+    }
+
+    // Funciones de utilidad
+    function cambiarColor() {
+      state.qrColor = document.getElementById('qr-color').value;
+      document.getElementById('qr-color-text').value = state.qrColor;
+      actualizarQR();
+    }
+
+    function cambiarColorTexto() {
+      const color = document.getElementById('qr-color-text').value;
+      if (/^#[0-9A-F]{6}$/i.test(color)) {
+        state.qrColor = color;
+        document.getElementById('qr-color').value = color;
+        actualizarQR();
+      }
+    }
+
+    function cambiarBgColor() {
+      state.qrBgColor = document.getElementById('qr-bgcolor').value;
+      document.getElementById('qr-bgcolor-text').value = state.qrBgColor;
+      actualizarQR();
+    }
+
+    function cambiarBgColorTexto() {
+      const color = document.getElementById('qr-bgcolor-text').value;
+      if (/^#[0-9A-F]{6}$/i.test(color)) {
+        state.qrBgColor = color;
+        document.getElementById('qr-bgcolor').value = color;
+        actualizarQR();
+      }
+    }
+
+    function cargarLogo() {
+      const file = document.getElementById('logo-input').files[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          state.logo = e.target.result;
+          renderInputSection();
+          actualizarQR();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function quitarLogo() {
+      state.logo = null;
+      document.getElementById('logo-input').value = '';
+      renderInputSection();
+      actualizarQR();
+    }
+
+    function limpiarFormulario() {
+      state.logo = null;
+      state.qrColor = '#000000';
+      state.qrBgColor = '#FFFFFF';
+      state.qrData = '';
+      renderInputSection();
+      document.getElementById('qr-container').innerHTML = '<div class="text-center py-16"><p class="text-gray-500 text-4xl mb-4">📱</p><p class="text-gray-500">Completa el formulario para generar tu código QR</p></div>';
+      document.getElementById('qr-actions').classList.add('hidden');
+    }
+
+    function descargarQR() {
+      const canvas = document.querySelector('#qr-container canvas');
+      if (canvas) {
+        const link = document.createElement('a');
+        link.download = `qr-code-${state.activeTab}-${Date.now()}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      }
+    }
+
+    async function copiarDatos() {
+      if (state.qrData) {
+        try {
+          await navigator.clipboard.writeText(state.qrData);
+          const btn = document.getElementById('btn-copiar');
+          btn.innerHTML = '✅ ¡Copiado!';
+          setTimeout(() => {
+            btn.innerHTML = '📋 Copiar Datos';
+          }, 2000);
+        } catch (err) {
+          alert('Error al copiar: ' + err);
+        }
+      }
+    }
+
+    // Inicializar
+    window.onload = () => {
+      renderInputSection();
+    };
+  </script>
+
+</body>
+</html>
